@@ -55,8 +55,8 @@ echo "⚠️  Selected degraded pool: $selected_pool"
 echo
 
 # Step 3: Detect the missing disk in the selected pool.
-# Filter out lines that start with "state:" so we only capture disk lines.
-missing_line=$(zpool status "$selected_pool" | grep -v "^state:" | grep -E "MISSING|UNAVAIL|DEGRADED|REMOVED" | head -n1)
+# Use awk to extract the disk identifier where the first field starts with ata-/scsi- and status is REMOVED (or similar).
+missing_line=$(zpool status "$selected_pool" | awk '/REMOVED/ && ($1 ~ /^(ata-|scsi-)/){print; exit}')
 if [ -z "$missing_line" ]; then
     echo "✅ No missing disk found in pool $selected_pool. Exiting."
     exit 0
@@ -77,7 +77,7 @@ for pool in $(zpool list -H -o name); do
     done < <(zpool status "$pool")
 done
 
-# Optional: Remove duplicate entries.
+# Remove duplicate entries.
 all_pool_disks=($(printf "%s\n" "${all_pool_disks[@]}" | sort -u))
 
 # Step 5: Scan /dev/disk/by-id for candidate new disks that are not in any pool.
