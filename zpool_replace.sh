@@ -55,8 +55,8 @@ echo "⚠️  Selected degraded pool: $selected_pool"
 echo
 
 # Step 3: Detect the missing disk in the selected pool.
-# Check for keywords "MISSING", "UNAVAIL", "DEGRADED", or "REMOVED".
-missing_line=$(zpool status "$selected_pool" | grep -E "MISSING|UNAVAIL|DEGRADED|REMOVED" | head -n1)
+# Filter out lines that start with "state:" so we only capture disk lines.
+missing_line=$(zpool status "$selected_pool" | grep -v "^state:" | grep -E "MISSING|UNAVAIL|DEGRADED|REMOVED" | head -n1)
 if [ -z "$missing_line" ]; then
     echo "✅ No missing disk found in pool $selected_pool. Exiting."
     exit 0
