@@ -56,7 +56,7 @@ echo
 
 # Step 3: Detect the missing disk in the selected pool.
 # We look for a line containing "MISSING" or "UNAVAIL"
-missing_line=$(zpool status "$selected_pool" | grep -E "MISSING|UNAVAIL" | head -n1)
+missing_line=$(zpool status "$selected_pool" | grep -E "MISSING|UNAVAIL|DEGRADED|REMOVED" | head -n1)
 if [ -z "$missing_line" ]; then
     echo "✅ No missing disk found in pool $selected_pool. Exiting."
     exit 0
