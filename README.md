@@ -85,6 +85,9 @@ Model: <MODEL>, Serial: <SERIAL>, Size: <SIZE>
 ```
 _After confirming, give it a few seconds to execute before panicking and pulling the plug!_
 
+## Fonts:
+Not seeing the emojis in your terminal?  Download `Terminess Nerd Font` [here!](https://www.nerdfonts.com/font-downloads)
+
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
