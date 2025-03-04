@@ -12,7 +12,7 @@
 
 # Step 0: Check if any pool is currently resilvering.
 scan_line=$(zpool status | grep "^  scan:")
-if echo "$scan_line" | grep -q "resilvering"; then
+if echo "$scan_line" | grep -q "currently being resilvered"; then
     echo "🔄 The pool is currently resilvering. Please wait until the resilver completes before attempting a replacement."
     exit 0
 fi
