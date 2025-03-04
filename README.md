@@ -1,35 +1,40 @@
-# ZFS Pool Replace Script
+# ZFS Disk Replacement Script
 
-This repository contains a handy Bash script to help you manage disk replacements in your ZFS pools. The `zpool_replace.sh` script is designed to interactively guide you through the process of replacing a missing or degraded disk in your ZFS pool. It is especially useful for pools configured with RAIDz2, mirrors, or other vdev types.
+This repository contains a handy Bash script—[`zpool_replace.sh`](./zpool_replace.sh)—to help you manage disk replacements in your ZFS pools. It interactively guides you through the process of replacing a missing or degraded disk, checking for resilver operations, and listing candidate new disks that aren’t already part of any ZFS pool.
 
 ## Features
 
-- **Interactive Replacement:**  
-  The script walks you through the process by:
-  1. Detecting a degraded ZFS pool and identifying the missing disk.
-  2. Scanning for candidate replacement disks that are not currently in the pool.
-  3. Displaying detailed information (model, serial number, size, etc.) for the missing disk and each candidate.
-  4. Prompting you for confirmation before executing the `zpool replace` command.
+- **Multi-Pool Health Check:**  
+  Detects which pools are degraded (i.e., not in `ONLINE` state) and prompts you to select one if multiple pools are affected.
 
-- **Resilver Check:**  
-  Before taking any action, the script checks if the pool is currently resilvering. If so, it will exit, ensuring that you don’t disrupt an in-progress rebuild.
+- **Missing Disk Detection:**  
+  Automatically identifies the disk marked as `REMOVED`, `MISSING`, `UNAVAIL`, or `DEGRADED` in the selected pool.
+
+- **Resilver Protection:**  
+  If the pool is already resilvering, the script will notify you and exit to prevent interfering with the ongoing rebuild.
+
+- **All-Pool Disk Exclusion:**  
+  Gathers a list of disks currently in **any** ZFS pool, ensuring only truly “new” disks are displayed as replacement candidates.
 
 - **Detailed Disk Info:**  
-  The script leverages tools like `smartctl` and `lsblk` to retrieve and display important details about your disks.
+  Uses `smartctl` and `lsblk` to display each candidate disk’s model, serial number, and size before you pick one.
 
-- **User-Friendly Prompts:**  
-  Friendly interactive prompts and emojis help guide you through the replacement process, making it easier to manage disk failures.
+- **Interactive Replacement:**  
+  Asks you to confirm the replacement, then runs the appropriate `zpool replace` command.
+
+- **Friendly Emojis & Prompts:**  
+  Offers a more readable and interactive user experience, with clear instructions and prompts at each step.
 
 ## Requirements
 
 - **Operating System:**  
-  Linux (e.g. Proxmox VE, Ubuntu, Debian)
+  Linux (e.g., Proxmox VE, Ubuntu, Debian)
 
 - **Dependencies:**  
-  - ZFS (with the `zpool` command)
-  - [smartmontools](https://www.smartmontools.org/) (for `smartctl`)
-  - `lsblk`
-  - Basic GNU utilities (such as `awk`, `sed`, and `grep`)
+  - ZFS (with the `zpool` command installed)  
+  - `smartctl` (from [smartmontools](https://www.smartmontools.org/))  
+  - `lsblk`  
+  - Basic GNU utilities (e.g., `awk`, `sed`, `grep`)
 
 ## Usage
 
@@ -48,15 +53,40 @@ This repository contains a handy Bash script to help you manage disk replacement
    ./zpool_replace.sh
    ```
 
-    The script will:
-    - Check if the pool is healthy or if a resilver is in progress.
-    - Identify the missing disk in your degraded pool.
-    - Scan and list candidate disks that are not part of the pool.
-    - Prompt you to select a replacement disk.
-    - Confirm the replacement operation before executing the zpool replace command.
+The script will:
+1. **Check** all ZFS pools to see if any are degraded and if resilvering is in progress.
+2. **Prompt** you to select the degraded pool if more than one is detected.
+3. **Identify** the missing or removed disk in that pool.
+4. **Build** a list of disks used by any pool to exclude them from the candidate list.
+5. **Show** you the remaining disks along with detailed info (model, serial, size).
+6. **Prompt** you to select the replacement disk and confirm.
+7. **Execute** the zpool replace command if you confirm.
+
+## Example:
+
+Below is a sample run with placeholders:
+```bash
+⚠️  Selected degraded pool: <POOL_NAME>
+
+❌ Missing disk identifier (from pool): <MISSING_DISK_ID>
+
+🔍 Scanning for candidate new disks (drives not in any pool)...
+💡 Candidate new disks found:
+[0] <NEW_DISK_ID> -> Device: <DEVICE_PATH>, Model: <MODEL>, Serial: <SERIAL>, Size: <SIZE>
+
+👉 Enter the number corresponding to the new disk you want to use: 0
+
+✅ Selected new disk:
+Identifier: <NEW_DISK_ID>
+Device: <DEVICE_PATH>
+Model: <MODEL>, Serial: <SERIAL>, Size: <SIZE>
+
+❓ Would you like to replace missing disk <MISSING_DISK_ID> in pool <POOL_NAME> with new disk <NEW_DISK_ID>? [y/N]
+```
+_After confirming, give it a few seconds to execute before panicking and pulling the plug!_
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 
-Happy ZFS managing! 🚀
+**Happy ZFS managing! 🚀**
