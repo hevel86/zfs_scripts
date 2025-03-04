@@ -11,7 +11,8 @@
 #   7. Prompt for confirmation before executing the zpool replace command.
 
 # Step 0: Check if any pool is currently resilvering.
-if zpool status | grep -q "resilver"; then
+scan_line=$(zpool status | grep "^  scan:")
+if echo "$scan_line" | grep -q "resilvering"; then
     echo "🔄 The pool is currently resilvering. Please wait until the resilver completes before attempting a replacement."
     exit 0
 fi
