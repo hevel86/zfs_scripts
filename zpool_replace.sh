@@ -1,27 +1,27 @@
 #!/bin/bash
-# Interactive ZFS Disk Replacement Script with Multi-Pool Health Check & Emojis
+# Interactive ZFS Disk Replacement Script with Multi-Pool Health Check & Emoji
 # This script assists you in replacing a missing disk in any degraded ZFS pool.
 # It will:
 #   1. Check all pools for a degraded/unhealthy state.
 #   2. If one or more degraded pools are found, list them for selection.
 #   3. For the selected pool, detect the missing disk.
-#   4. Scan for candidate replacement disks that are not already in the pool.
-#   5. Display detailed info (model, serial, size, etc.) for the missing disk and each candidate.
-#   6. Prompt you for confirmation before executing the zpool replace command.
+#   4. Build a list of all disks currently in any pool.
+#   5. Scan for candidate new disks (those not in any pool).
+#   6. Display detailed info (model, serial, size, etc.) for each candidate.
+#   7. Prompt for confirmation before executing the zpool replace command.
 
-# Step 0: Check if any pool is currently resilvering
+# Step 0: Check if any pool is currently resilvering.
 if zpool status | grep -q "resilver"; then
     echo "🔄 The pool is currently resilvering. Please wait until the resilver completes before attempting a replacement."
     exit 0
 fi
 
-# Step 1: Gather all degraded (or unhealthy) pools (state not ONLINE)
+# Step 1: Gather all degraded (or unhealthy) pools (state not ONLINE).
 degraded_pools=()
 while read -r line; do
     pool_name=$(echo "$line" | awk '{print $2}')
     degraded_pools+=("$pool_name")
 done < <(zpool status | grep -E "^  pool:" | while read -r l; do
-    # For each pool, get the state line following the "pool:" line.
     pool=$(echo "$l" | awk '{print $2}')
     state_line=$(zpool status "$pool" | grep "state:" | head -n1)
     state=$(echo "$state_line" | awk '{print $2}')
@@ -55,7 +55,7 @@ echo "⚠️  Selected degraded pool: $selected_pool"
 echo
 
 # Step 3: Detect the missing disk in the selected pool.
-# We look for a line containing "MISSING" or "UNAVAIL"
+# Check for keywords "MISSING", "UNAVAIL", "DEGRADED", or "REMOVED".
 missing_line=$(zpool status "$selected_pool" | grep -E "MISSING|UNAVAIL|DEGRADED|REMOVED" | head -n1)
 if [ -z "$missing_line" ]; then
     echo "✅ No missing disk found in pool $selected_pool. Exiting."
@@ -65,25 +65,32 @@ missing_identifier=$(echo "$missing_line" | awk '{print $1}')
 echo "❌ Missing disk identifier (from pool): $missing_identifier"
 echo
 
-# Step 4: Build a list of disks already in the pool.
-pool_disks=()
-while IFS= read -r line; do
-    if [[ $line =~ ^[[:space:]]+((ata-|scsi-)[^[:space:]]+) ]]; then
-        pd=$(echo "$line" | awk '{print $1}')
-        base_pd=$(echo "$pd" | sed 's/-part.*//')
-        pool_disks+=("$base_pd")
-    fi
-done < <(zpool status "$selected_pool")
+# Step 4: Build a list of all disks currently in any pool.
+all_pool_disks=()
+for pool in $(zpool list -H -o name); do
+    while IFS= read -r line; do
+        if [[ $line =~ ^[[:space:]]+((ata-|scsi-)[^[:space:]]+) ]]; then
+            pd=$(echo "$line" | awk '{print $1}')
+            base_pd=$(echo "$pd" | sed 's/-part.*//')
+            all_pool_disks+=("$base_pd")
+        fi
+    done < <(zpool status "$pool")
+done
 
-# Step 5: Scan /dev/disk/by-id for candidate new disks not already in the pool.
-echo "🔍 Scanning for candidate new disks (drives not in the pool)..."
+# Optional: Remove duplicate entries.
+all_pool_disks=($(printf "%s\n" "${all_pool_disks[@]}" | sort -u))
+
+# Step 5: Scan /dev/disk/by-id for candidate new disks that are not in any pool.
+echo "🔍 Scanning for candidate new disks (drives not in any pool)..."
 new_candidates=()
 for id_path in /dev/disk/by-id/ata-* /dev/disk/by-id/scsi-*; do
     [ -e "$id_path" ] || continue
     id=$(basename "$id_path")
+    # Remove partition suffix if present.
+    base_id=$(echo "$id" | sed 's/-part.*//')
     skip=0
-    for pd in "${pool_disks[@]}"; do
-        if [[ "$id" == "$pd" ]]; then
+    for pd in "${all_pool_disks[@]}"; do
+        if [[ "$base_id" == "$pd" ]]; then
             skip=1
             break
         fi
